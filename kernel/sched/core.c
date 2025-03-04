@@ -7437,7 +7437,38 @@ int can_nice(const struct task_struct *p, const int nice)
  */
 SYSCALL_DEFINE1(propagate_nice, int, increment)
 {
+	// Verify input
+	if (increment < 0) {
+		return -EINVAL;
+	}
+
+	set_user_nice(current, task_nice(current) + increment);
+
+	struct list_head *ptr_sibling_entry;
+	list_for_each(ptr_sibling_entry, &(current->children)) {
+		const struct task_struct *child = list_entry(
+			ptr_sibling_entry, struct task_struct, sibling);
+
+		recursive_propagat_nice(child, increment / 2);
+	}
+
 	return 0;
+}
+
+void recursive_propagat_nice(const struct task_struct *task, int increment)
+{
+	// Base case
+	if (increment <= 0) {
+		return;
+	}
+
+	struct list_head *testing_thin;
+	list_for_each(ptr_sibling_entry, &(task->children)) {
+		const struct task_struct *child = list_entry(
+			ptr_sibling_entry, struct task_struct, sibling);
+		recursive_propagat_nice(child, increment / 2);
+		set_user_nice(child, task_nice(child) + increment);
+	}
 }
 
 #ifdef __ARCH_WANT_SYS_NICE
