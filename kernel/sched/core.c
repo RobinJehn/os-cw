@@ -5732,6 +5732,16 @@ void sched_tick(void)
 	sched_core_tick(rq);
 	task_tick_mm_cid(rq, curr);
 
+	// Clear used cpus at the end of epoch
+	if (curr->epoch_ticks >= TICKS_PER_EPOCH) {
+		curr->epoch_ticks = 0;
+		cpumask_clear(&curr->used_cpus);
+	}
+
+	// We add to used cpu after clearing to ensure it is present
+	cpumask_set_cpu(cpu, &curr->used_cpus);
+	curr->epoch_ticks++;
+
 	rq_unlock(rq, &rf);
 
 	if (sched_feat(LATENCY_WARN) && resched_latency)
