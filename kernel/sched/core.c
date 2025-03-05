@@ -8216,7 +8216,26 @@ static void get_params(struct task_struct *p, struct sched_attr *attr)
  */
 SYSCALL_DEFINE2(ancestor_pid, pid_t, pid, unsigned int, n)
 {
-	return 0;
+	// Verify input
+	if (pid < 0) {
+		return -EINVAL;
+	}
+
+	// Get the task belonging to the pid
+	const struct task_struct *task = find_task_by_vpid(pid);
+	if (!task) {
+		return -ESRCH;
+	}
+
+	// Find the n-th ancestor
+	for (unsigned int i = 0; i < n; i++) {
+		if (!task->real_parent) {
+			return -ESRCH;
+		}
+		task = task->real_parent;
+	}
+
+	return task->pid;
 }
 
 /**
