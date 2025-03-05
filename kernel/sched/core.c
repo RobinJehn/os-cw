@@ -7433,7 +7433,7 @@ int can_nice(const struct task_struct *p, const int nice)
  * @param task The task whose niceness is to be updated
  * @param increment How much to update the niceness by. Negative values are ignored.
  */
-void recursive_propagate_nice(struct task_struct *task, int increment)
+static void recursive_propagate_nice(struct task_struct *task, int increment)
 {
 	// Base case
 	if (increment <= 0) {
