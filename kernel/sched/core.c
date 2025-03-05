@@ -883,9 +883,7 @@ static inline void hrtick_clear(struct rq *rq)
 {
 }
 
-static inline void hrtick_rq_init(struct rq *rq)
-{
-}
+static inline void hrtick_rq_init(struct rq *rq){}
 #endif /* CONFIG_SCHED_HRTICK */
 
 /*
@@ -5070,7 +5068,7 @@ static inline void finish_task(struct task_struct *prev)
 
 static void do_balance_callbacks(struct rq *rq, struct balance_callback *head)
 {
-	void (*func)(struct rq * rq);
+	void (*func)(struct rq *rq);
 	struct balance_callback *next;
 
 	lockdep_assert_rq_held(rq);
@@ -7442,32 +7440,36 @@ SYSCALL_DEFINE1(propagate_nice, int, increment)
 		return -EINVAL;
 	}
 
-	set_user_nice(current, task_nice(current) + increment);
-
-	struct list_head *ptr_sibling_entry;
-	list_for_each(ptr_sibling_entry, &(current->children)) {
-		const struct task_struct *child = list_entry(
-			ptr_sibling_entry, struct task_struct, sibling);
-
-		recursive_propagat_nice(child, increment / 2);
-	}
-
+	recursive_propagate_nice(current, increment);
 	return 0;
 }
 
-void recursive_propagat_nice(const struct task_struct *task, int increment)
+/**
+ * @brief Recursively update the niceness of the current process and its children.
+ * The niceness of the children is updated by half of the increment (floored).
+ * 
+ * @param task The task whose niceness is to be updated
+ * @param increment How much to update the niceness by. Negative values are ignored.
+ */
+void recursive_propagate_nice(struct task_struct *task, int increment)
 {
 	// Base case
 	if (increment <= 0) {
 		return;
 	}
 
-	struct list_head *testing_thin;
-	list_for_each(ptr_sibling_entry, &(task->children)) {
-		const struct task_struct *child = list_entry(
-			ptr_sibling_entry, struct task_struct, sibling);
-		recursive_propagat_nice(child, increment / 2);
-		set_user_nice(child, task_nice(child) + increment);
+	// Skip dead or zombie processes
+	if (!task || task->exit_state != 0) {
+		return;
+	}
+
+	// Update current task's nice value
+	set_user_nice(task, clamp(task_nice(task) + increment, -20, 19));
+
+	// Recursively update the niceness of the children
+	struct task_struct *child;
+	list_for_each_entry(child, &(task->children), sibling) {
+		recursive_propagate_nice(child, increment / 2);
 	}
 }
 
