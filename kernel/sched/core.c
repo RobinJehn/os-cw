@@ -7427,6 +7427,35 @@ int can_nice(const struct task_struct *p, const int nice)
 }
 
 /**
+ * @brief Recursively update the niceness of the current process and its children.
+ * The niceness of the children is updated by half of the increment (floored).
+ * 
+ * @param task The task whose niceness is to be updated
+ * @param increment How much to update the niceness by. Negative values are ignored.
+ */
+static void recursive_propagate_nice(struct task_struct *task, int increment)
+{
+	// Base case
+	if (increment <= 0) {
+		return;
+	}
+
+	// Skip dead or zombie processes
+	if (!task || task->exit_state != 0) {
+		return;
+	}
+
+	// Update current task's nice value
+	set_user_nice(task, clamp(task_nice(task) + increment, -20, 19));
+
+	// Recursively update the niceness of the children
+	struct task_struct *child;
+	list_for_each_entry(child, &(task->children), sibling) {
+		recursive_propagate_nice(child, increment / 2);
+	}
+}
+
+/**
  * CW1
  * sys_propagate_nice - trickle-down nice-increment to descendants
  * @increment: nice-increment for calling process
@@ -7435,6 +7464,12 @@ int can_nice(const struct task_struct *p, const int nice)
  */
 SYSCALL_DEFINE1(propagate_nice, int, increment)
 {
+	// Verify input
+	if (increment < 0) {
+		return -EINVAL;
+	}
+
+	recursive_propagate_nice(current, increment);
 	return 0;
 }
 
