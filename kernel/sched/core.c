@@ -8264,31 +8264,51 @@ static void get_params(struct task_struct *p, struct sched_attr *attr)
  */
 SYSCALL_DEFINE2(ancestor_pid, pid_t, pid, unsigned int, n)
 {
-	// If pid is 0, use the current process's pid
-	if (pid == 0) {
-		pid = current->pid;
-	}
-
 	// Verify input
 	if (pid < 0) {
 		return -EINVAL;
 	}
 
-	// Get the task belonging to the pid
-	const struct task_struct *task = find_task_by_vpid(pid);
+	// If pid is 0, use the current process's pid
+	if (pid == 0) {
+		pid = current->pid;
+	}
+
+	// Lock to prevent simultaneous access
+	rcu_read_lock();
+	struct task_struct *task = find_task_by_vpid(pid);
 	if (!task) {
+		rcu_read_unlock();
 		return -ESRCH;
 	}
 
-	// Find the n-th ancestor
+	// Increase the reference count to keep the task alive
+	get_task_struct(task);
+
+	// Traverse the ancestor chain
 	for (unsigned int i = 0; i < n; i++) {
-		if (!task->real_parent || task->real_parent == task) {
+		const struct task_struct *parent =
+			rcu_dereference(task->real_parent);
+		if (!parent || parent == task) {
+			put_task_struct(task);
+			rcu_read_unlock();
 			return -ESRCH;
 		}
-		task = task->real_parent;
+
+		// Update the task reference safely
+		get_task_struct(parent);
+		put_task_struct(task); // Release the previous task reference
+		task = parent;
 	}
 
-	return task->pid;
+	// Get the ancestor's PID before releasing the reference
+	const pid_t ancestor_pid = task->pid;
+
+	// Cleanup
+	put_task_struct(task);
+	rcu_read_unlock();
+
+	return ancestor_pid;
 }
 
 /**
