@@ -5734,6 +5734,8 @@ void sched_tick(void)
 
 	// CW1 - Task 3
 	if (curr != rq->idle) {
+		task_lock(curr);
+
 		// Clear used cpus at the end of epoch
 		if (curr->epoch_ticks >= TICKS_PER_EPOCH) {
 			curr->epoch_ticks = 0;
@@ -5743,6 +5745,8 @@ void sched_tick(void)
 		// We add to used cpu after clearing to ensure it is present
 		cpumask_set_cpu(cpu, &curr->used_cpus);
 		curr->epoch_ticks++;
+
+		task_unlock(curr);
 	}
 
 	rq_unlock(rq, &rf);
@@ -7449,17 +7453,16 @@ int can_nice(const struct task_struct *p, const int nice)
 static void recursive_propagate_nice(struct task_struct *task, int increment)
 {
 	// Base case
-	if (increment <= 0) {
+	if (increment <= 0 || !task) {
 		return;
 	}
 
-	// Skip dead or zombie processes
-	if (!task || task->exit_state != 0) {
-		return;
-	}
-
-	// Lock to increment the niceness
+	// Lock to r/w the task
 	task_lock(task);
+	// Skip dead or zombie processes
+	if (task->exit_state != 0) {
+		return;
+	}
 	set_user_nice(task, clamp(task_nice(task) + increment, -20, 19));
 	task_unlock(task);
 
