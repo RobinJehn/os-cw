@@ -8263,7 +8263,6 @@ SYSCALL_DEFINE2(ancestor_pid, pid_t, pid, unsigned int, n)
 {
 	// If pid is 0, use the current process's pid
 	if (pid == 0) {
-		printk("WARNING: pid is 0\n");
 		pid = current->pid;
 	}
 	
@@ -8280,7 +8279,7 @@ SYSCALL_DEFINE2(ancestor_pid, pid_t, pid, unsigned int, n)
 
 	// Find the n-th ancestor
 	for (unsigned int i = 0; i < n; i++) {
-		if (!task->real_parent) {
+		if (!task->real_parent || task->real_parent == task) {
 			return -ESRCH;
 		}
 		task = task->real_parent;
