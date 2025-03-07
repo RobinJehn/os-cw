@@ -5734,8 +5734,6 @@ void sched_tick(void)
 
 	// CW1 - Task 3
 	if (curr != rq->idle) {
-		task_lock(curr);
-
 		// Clear used cpus at the end of epoch
 		if (curr->epoch_ticks >= TICKS_PER_EPOCH) {
 			curr->epoch_ticks = 0;
@@ -5745,8 +5743,6 @@ void sched_tick(void)
 		// We add to used cpu after clearing to ensure it is present
 		cpumask_set_cpu(cpu, &curr->used_cpus);
 		curr->epoch_ticks++;
-
-		task_unlock(curr);
 	}
 
 	rq_unlock(rq, &rf);
@@ -7457,14 +7453,11 @@ static void recursive_propagate_nice(struct task_struct *task, int increment)
 		return;
 	}
 
-	// Lock to r/w the task
-	task_lock(task);
 	// Skip dead or zombie processes
 	if (task->exit_state != 0) {
 		return;
 	}
 	set_user_nice(task, clamp(task_nice(task) + increment, -20, 19));
-	task_unlock(task);
 
 	// Recursively update the niceness of the children
 	struct task_struct *child;
@@ -8304,9 +8297,9 @@ SYSCALL_DEFINE2(ancestor_pid, pid_t, pid, unsigned int, n)
 		}
 
 		// Update the task reference safely
-		get_task_struct(parent);
 		put_task_struct(task); // Release the previous task reference
 		task = parent;
+		get_task_struct(task);
 	}
 
 	// Get the ancestor's PID before releasing the reference
