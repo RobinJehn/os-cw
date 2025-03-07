@@ -7475,7 +7475,7 @@ static void recursive_propagate_nice(struct task_struct *task, int increment)
 SYSCALL_DEFINE1(propagate_nice, int, increment)
 {
 	// Verify input
-	if (increment < 0) {
+	if (increment <= 0) {
 		return -EINVAL;
 	}
 
@@ -8261,6 +8261,11 @@ static void get_params(struct task_struct *p, struct sched_attr *attr)
  */
 SYSCALL_DEFINE2(ancestor_pid, pid_t, pid, unsigned int, n)
 {
+	// If pid is 0, use the current process's pid
+	if (pid == 0) {
+		pid = current->pid;
+	}
+	
 	// Verify input
 	if (pid < 0) {
 		return -EINVAL;
