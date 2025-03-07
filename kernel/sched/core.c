@@ -8296,8 +8296,7 @@ SYSCALL_DEFINE2(ancestor_pid, pid_t, pid, unsigned int, n)
 
 	// Traverse the ancestor chain
 	for (unsigned int i = 0; i < n; i++) {
-		const struct task_struct *parent =
-			rcu_dereference(task->real_parent);
+		struct task_struct *parent = rcu_dereference(task->real_parent);
 		if (!parent || parent == task) {
 			put_task_struct(task);
 			rcu_read_unlock();
