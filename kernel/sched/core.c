@@ -7458,14 +7458,20 @@ static void recursive_propagate_nice(struct task_struct *task, int increment)
 		return;
 	}
 
-	// Update current task's nice value
+	// Lock to increment the niceness
+	task_lock(task);
 	set_user_nice(task, clamp(task_nice(task) + increment, -20, 19));
+	task_unlock(task);
 
 	// Recursively update the niceness of the children
 	struct task_struct *child;
-	list_for_each_entry(child, &(task->children), sibling) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(child, &(task->children), sibling) {
+		get_task_struct(child); // Increase reference before recursion
 		recursive_propagate_nice(child, increment / 2);
+		put_task_struct(child); // Release reference after recursion
 	}
+	rcu_read_unlock();
 }
 
 /**
