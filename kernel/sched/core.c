@@ -8263,6 +8263,7 @@ SYSCALL_DEFINE2(ancestor_pid, pid_t, pid, unsigned int, n)
 {
 	// If pid is 0, use the current process's pid
 	if (pid == 0) {
+		printk("WARNING: pid is 0\n");
 		pid = current->pid;
 	}
 	
